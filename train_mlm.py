@@ -39,6 +39,25 @@ def encode(sentence):
     ids += [vocab["[PAD]"]] * (max_len - len(ids))
     return ids
 
+def encode_user_sentence(sentence):
+    raw_words = sentence.split()
+    words = []
+    ids = []
+
+    for w in raw_words:
+        if w.upper() == "[MASK]":
+            words.append("[MASK]")
+            ids.append(vocab["[MASK]"])
+        else:
+            w = w.lower()
+            if w not in vocab:
+                raise ValueError(f"Word '{w}' not in vocabulary")
+            words.append(w)
+            ids.append(vocab[w])
+
+    ids += [vocab["[PAD]"]] * (max_len - len(ids))
+    return words, ids
+
 inputs = torch.tensor([encode(s) for s in sentences]).to(device)
 targets = torch.tensor(targets).to(device)
 
@@ -62,9 +81,26 @@ for epoch in range(50):
     loss.backward()
     optimizer.step()
 
+user_input = input("Enter a sentence with [MASK]: ")
+
+words, encoded = encode_user_sentence(user_input)
+input_tensor = torch.tensor([encoded]).to(device)
+
+mask_position = (input_tensor == vocab["[MASK]"]).nonzero(as_tuple=True)
+
 with torch.no_grad():
-    outputs = model(inputs)
-    masked_outputs = outputs[mask_positions[0], mask_positions[1]]
-    predictions = torch.argmax(masked_outputs, dim=1)
-    for p in predictions:
-        print(inv_vocab[p.item()])
+    output = model(input_tensor)
+    masked_output = output[mask_position[0], mask_position[1]]
+    prediction = torch.argmax(masked_output, dim=1)
+
+predicted_word = inv_vocab[prediction.item()]
+
+reconstructed = [
+    predicted_word if w == "[MASK]" else w
+    for w in words
+]
+
+print()
+print("Input Sentence      :", " ".join(words))
+print("Predicted Word     :", predicted_word)
+print("Reconstructed Text :", " ".join(reconstructed))
