@@ -63,3 +63,22 @@ class TransformerEncoder(nn.Module):
             x = layer(x, mask)
 
         return x
+class TransformerClassifier(nn.Module):
+    def __init__(self, vocab_size, d_model, num_layers, num_heads, dim_ff, num_classes):
+        super(TransformerClassifier, self).__init__()
+
+        self.encoder = TransformerEncoder(
+            vocab_size=vocab_size,
+            d_model=d_model,
+            num_layers=num_layers,
+            num_heads=num_heads,
+            dim_ff=dim_ff
+        )
+
+        self.fc = nn.Linear(d_model, num_classes)
+
+    def forward(self, x):
+        encoder_output = self.encoder(x)
+        pooled = encoder_output.mean(dim=1)
+        logits = self.fc(pooled)
+        return logits
